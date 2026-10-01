@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard do Alarme IoT</title>
+    <style>
+        :root {
+            color-scheme: dark;
+            --page: #0b1115;
+            --surface: #111b20;
+            --surface-raised: #17242a;
+            --line: #26373d;
+            --text: #e8f0ee;
+            --muted: #91a5a5;
+            --mint: #76e0b5;
+            --mint-dark: #173f35;
+            --red: #ff786f;
+            --red-dark: #482925;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            min-height: 100vh;
+            margin: 0;
+            padding: clamp(20px, 5vw, 64px) 20px;
+            background-color: var(--page);
+            background-image: radial-gradient(ellipse at 12% 0%, #17352d 0, transparent 34%),
+                linear-gradient(135deg, transparent 55%, #14232a 100%);
+            color: var(--text);
+            font-family: Inter, "Segoe UI", sans-serif;
+        }
+
+        button { font: inherit; }
+
+        .container {
+            width: min(100%, 980px);
+            margin: 0 auto;
+        }
+
+        .topbar, .heading, .section-heading, .status-copy {
+            display: flex;
+            align-items: center;
+        }
+
+        .topbar, .section-heading { justify-content: space-between; }
+
+        .topbar {
+            gap: 16px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .brand { display: flex; align-items: center; gap: 12px; }
+
+        .brand-mark {
+            display: grid;
+            width: 42px;
+            aspect-ratio: 1;
+            place-items: center;
+            border: 1px solid #347260;
+            border-radius: 12px;
+            background: #15352d;
+            color: var(--mint);
+            font-size: 20px;
+        }
+
+        .eyebrow, .section-label {
+            margin: 0;
+            color: var(--muted);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 1.4px;
+            text-transform: uppercase;
+        }
+
+        .brand-name { margin: 3px 0 0; font-size: 15px; font-weight: 650; }
+
+        .connection {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 13px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: #10191e;
+            color: var(--muted);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .led {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: #657579;
+            box-shadow: 0 0 0 3px #263337;
+        }
+
+        .connection.is-online { color: var(--mint); }
+        .connection.is-online .led { background: #58df9e; box-shadow: 0 0 12px #58df9e88; }
+        .connection.is-offline { color: var(--red); }
+        .connection.is-offline .led { background: #ff665e; box-shadow: 0 0 12px #ff665e88; }
+
+        .heading {
+            justify-content: space-between;
+            gap: 24px;
+            padding: 37px 0 28px;
+        }
+
+        h1 { margin: 0; font-size: clamp(25px, 4vw, 34px); letter-spacing: 0; }
+        .subtitle { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+
+        .btn-ativar, .btn-desligar {
+            min-height: 48px;
+            padding: 0 19px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 160ms ease, border-color 160ms ease, opacity 160ms ease;
+        }
+
+        .btn-ativar {
+            border: 1px solid #347260;
+            background: var(--mint-dark);
+            color: #c4f8e2;
+        }
+
+        .btn-ativar:hover:not(:disabled) { border-color: var(--mint); background: #205344; }
+        .btn-desligar { border: 1px solid #ff796e; background: #a52f2b; color: #fff1ed; }
+        .btn-desligar:hover:not(:disabled) { border-color: var(--red); background: #60332e; }
+        .btn-ativar:focus-visible, .btn-desligar:focus-visible { outline: 2px solid var(--mint); outline-offset: 3px; }
+        .btn-ativar:disabled, .btn-desligar:disabled { cursor: wait; opacity: 0.65; }
+
+        .panel {
+            overflow: hidden;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--surface);
+        }
+
+        .section-heading {
+            min-height: 75px;
+            gap: 16px;
+            padding: 17px 22px;
+            border-bottom: 1px solid var(--line);
+        }
+
+        .section-heading h2 { margin: 0; font-size: 15px; font-weight: 650; }
+        .section-label { margin-top: 5px; font-size: 10px; letter-spacing: 1px; }
+        .refresh-note { color: var(--muted); font-size: 12px; white-space: nowrap; }
+
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th, td { padding: 15px 22px; border-bottom: 1px solid #202f34; }
+        th {
+            background: var(--surface-raised);
+            color: #a9bcba;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 1.1px;
+            text-transform: uppercase;
+        }
+        td { color: #d7e2df; font-size: 13px; }
+        tbody tr:last-child td { border-bottom: 0; }
+        tbody tr:hover { background: #ffffff05; }
+
+        .status-on {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--red);
+            font-weight: 650;
+        }
+        .status-on::before {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            content: "";
+        }
+
+        .empty-state { padding: 30px 22px; color: var(--muted); text-align: center; }
+
+        .toast {
+            position: fixed;
+            z-index: 2;
+            right: 24px;
+            bottom: 24px;
+            max-width: min(420px, calc(100vw - 32px));
+            padding: 15px 18px;
+            transform: translateY(12px);
+            border: 1px solid #347260;
+            border-radius: 8px;
+            background: #15352d;
+            box-shadow: 0 14px 40px #0008;
+            color: #dff9ed;
+            font-size: 13px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 180ms ease, transform 180ms ease;
+        }
+        .toast.is-visible { transform: translateY(0); opacity: 1; }
+        .toast.is-error { border-color: #95534d; background: #482925; color: #ffe1dd; }
+
+        .alarm-modal {
+            position: fixed;
+            z-index: 10;
+            inset: 0;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background: rgba(4, 8, 10, 0.88);
+            backdrop-filter: blur(8px);
+        }
+
+        .alarm-modal-card {
+            position: relative;
+            width: min(100%, 500px);
+            overflow: hidden;
+            padding: 42px clamp(24px, 7vw, 52px) 38px;
+            border: 1px solid #a8403c;
+            border-radius: 12px;
+            background: linear-gradient(155deg, #301c1e, #1a171a 68%);
+            box-shadow: 0 0 0 1px #ff645522, 0 28px 100px #000b, 0 0 55px #c6323026;
+            text-align: center;
+        }
+
+        .alarm-modal-card::before {
+            position: absolute;
+            top: 0;
+            right: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #872a27, #ff6359, #872a27);
+            content: "";
+        }
+
+        .alarm-kicker {
+            margin: 0 0 20px;
+            color: #ff9c91;
+            font-size: 11px;
+            font-weight: 750;
+            letter-spacing: 1.8px;
+            text-transform: uppercase;
+        }
+
+        .alarm-icon {
+            display: grid;
+            width: 82px;
+            aspect-ratio: 1;
+            margin: 0 auto 22px;
+            place-items: center;
+            border: 1px solid #ff756b77;
+            border-radius: 50%;
+            background: #782e2b55;
+            box-shadow: 0 0 34px #ff554833, inset 0 0 20px #ff554811;
+            font-size: 42px;
+        }
+
+        .alarm-title {
+            margin: 0;
+            color: #fff0ed;
+            font-size: clamp(21px, 5vw, 28px);
+            line-height: 1.25;
+        }
+
+        .alarm-description {
+            margin: 13px 0 28px;
+            color: #c8aaa8;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .alarm-modal .btn-desligar { width: 100%; min-height: 52px; font-size: 14px; }
+
+        @media (max-width: 620px) {
+            body { padding: 22px 14px; }
+            .heading { align-items: flex-start; flex-direction: column; padding: 30px 0 22px; }
+            .btn-ativar { width: 100%; }
+            .section-heading { align-items: flex-start; flex-direction: column; gap: 8px; padding: 16px; }
+            th, td { padding: 13px 14px; }
+            th { font-size: 9px; }
+            td { font-size: 12px; }
+            .refresh-note { white-space: normal; }
+            .alarm-modal { padding: 16px; }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header class="topbar">
+            <div class="brand">
+                <div>
+                    <p class="eyebrow">Central de monitoramento</p>
+                    <p class="brand-name">Sistemas IoT</p>
+                </div>
+            </div>
+            <div class="connection" id="status-conexao" role="status" aria-live="polite">
+                <span class="led" aria-hidden="true"></span>
+                <span id="texto-conexao">Verificando API</span>
+            </div>
+        </header>
+
+        <main>
+            <section class="heading" aria-labelledby="titulo-painel">
+                <div>
+                    <h1 id="titulo-painel">Monitor do alarme</h1>
+                    <p class="subtitle">Acompanhe a atividade e o estado do dispositivo.</p>
+                </div>
+                <button class="btn-ativar" id="botao-ativar" onclick="ativarAlarme()">
+                    Ativar Alarme
+                </button>
+            </section>
+
+            <section class="panel" aria-labelledby="titulo-registros">
+                <div class="section-heading">
+                    <div>
+                        <h2 id="titulo-registros">Últimos registros</h2>
+                        <p class="section-label">Atividade do dispositivo</p>
+                    </div>
+                    <span class="refresh-note">Atualização automática a cada 5 segundos</span>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Dispositivo</th>
+                                <th scope="col">Evento / Status</th>
+                                <th scope="col">Hora local</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-logs">
+                            <tr><td class="empty-state" colspan="3">Carregando dados...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div class="alarm-modal" id="modal-alarme" role="alertdialog" aria-modal="true" aria-labelledby="titulo-modal-alarme" aria-describedby="descricao-modal-alarme">
+        <section class="alarm-modal-card">
+            <p class="alarm-kicker">Alerta crítico · Segurança IoT</p>
+            <div class="alarm-icon" aria-hidden="true">🚨</div>
+            <h2 class="alarm-title" id="titulo-modal-alarme">ALARME ATIVO</h2>
+            <p class="alarm-description" id="descricao-modal-alarme">Verifique o ambiente e desative o alerta quando estiver seguro.</p>
+            <button class="btn-desligar" id="botao-desativar" onclick="desativarAlarme()">Desativar Alarme</button>
+        </section>
+    </div>
+    <div class="toast" id="notificacao" role="status" aria-live="polite"></div>
+
+    <script>
+        // A URL da API
+        const apiUrl = "https://app.phrsystem.com/api/teste/iot";
+
+        function atualizarStatusConexao(online) {
+            const indicador = document.getElementById('status-conexao');
+            indicador.classList.toggle('is-online', online);
+            indicador.classList.toggle('is-offline', !online);
+            document.getElementById('texto-conexao').textContent = online ? 'API online' : 'API offline';
+        }
+
+        let temporizadorNotificacao;
+        function mostrarNotificacao(mensagem, erro = false) {
+            const notificacao = document.getElementById('notificacao');
+            notificacao.textContent = mensagem;
+            notificacao.classList.toggle('is-error', erro);
+            notificacao.classList.add('is-visible');
+            clearTimeout(temporizadorNotificacao);
+            temporizadorNotificacao = setTimeout(() => notificacao.classList.remove('is-visible'), 3500);
+        }
+
+        // Função para buscar os logs do banco de dados (GET)
+        async function carregarLogs() {
+            try {
+                const resposta = await fetch(apiUrl);
+                const dados = await resposta.json();
+                console.log("Resposta da API:", dados);
+                atualizarStatusConexao(resposta.ok);
+                
+                const corpoTabela = document.getElementById('tabela-logs');
+                corpoTabela.innerHTML = ''; // Limpa a tabela antes de preencher
+                
+                // Verifica se a API retornou um array de dados
+                if (dados && dados.data && Array.isArray(dados.data) && dados.data.length > 0) {
+                    // Ordena pelos mais recentes primeiro e exibe os últimos 10
+                    const registrosOrdenados = dados.data.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    const ultimoEvento = registrosOrdenados[0];
+                    const modalAlarme = document.getElementById('modal-alarme');
+
+                    if ((ultimoEvento.device_id === 'dashboard-web' && ultimoEvento.button == 0) ||
+                        (ultimoEvento.device_id !== 'dashboard-web' && ultimoEvento.movement == 1)) {
+                        modalAlarme.style.display = 'flex';
+                    } else if (ultimoEvento.device_id === 'dashboard-web' && ultimoEvento.button == 1) {
+                        modalAlarme.style.display = 'none';
+                    }
+
+                    registrosOrdenados.slice(0, 10).forEach(registro => {
+                        const linha = document.createElement('tr');
+                        
+                        let statusMovimento;
+                        if (registro.device_id === 'dashboard-web') {
+                            if (registro.button == 1) {
+                                statusMovimento = '🔴 Desativado (Web)';
+                            } else if (registro.button == 0) {
+                                statusMovimento = '🟢 Ativado (Web)';
+                            } else {
+                                statusMovimento = 'Evento Web';
+                            }
+                        } else if (registro.movement == 1) {
+                            statusMovimento = '<span>🚨 Movimento Detectado</span>';
+                        } else if (registro.movement == 0) {
+                            statusMovimento = '✅ Normal';
+                        } else {
+                            statusMovimento = 'Status desconhecido';
+                        }
+                        
+                        const hora = new Date(registro.created_at).toLocaleString();
+
+                        linha.innerHTML = `
+                            <td>${registro.device_id || 'ESP32'}</td>
+                            <td>${statusMovimento}</td>
+                            <td>${hora}</td>
+                        `;
+                        corpoTabela.appendChild(linha);
+                    });
+                } else {
+                    corpoTabela.innerHTML = '<tr><td colspan="3">Nenhum registro encontrado.</td></tr>';
+                }
+            } catch (erro) {
+                console.error("Erro ao buscar logs:", erro);
+                atualizarStatusConexao(false);
+                document.getElementById('tabela-logs').innerHTML = '<tr><td colspan="3">Erro ao conectar com a API.</td></tr>';
+            }
+        }
+
+        async function enviarComandoAlarme(button) {
+            return fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    device_id: 'dashboard-web',
+                    movement: 0,
+                    button
+                })
+            });
+        }
+
+        async function ativarAlarme() {
+            const botao = document.getElementById('botao-ativar');
+            botao.disabled = true;
+            botao.textContent = 'Ativando...';
+            try {
+                const resposta = await enviarComandoAlarme(0);
+                if (resposta.ok) {
+                    mostrarNotificacao('Comando para ativar o alarme enviado.');
+                } else {
+                    mostrarNotificacao("Erro ao enviar comando. O servidor retornou: " + resposta.status, true);
+                }
+            } catch (erro) {
+                console.error("Erro ao ativar:", erro);
+                mostrarNotificacao("Erro de conexão ao tentar ativar o alarme.", true);
+            } finally {
+                botao.disabled = false;
+                botao.textContent = 'Ativar Alarme';
+            }
+        }
+
+        async function desativarAlarme() {
+            const modalAlarme = document.getElementById('modal-alarme');
+            const botao = document.getElementById('botao-desativar');
+            modalAlarme.style.display = 'none';
+            botao.disabled = true;
+            botao.textContent = 'Enviando...';
+            try {
+                const resposta = await enviarComandoAlarme(1);
+                if (resposta.ok) {
+                    mostrarNotificacao('Alarme desativado com sucesso.');
+                } else {
+                    mostrarNotificacao("Erro ao enviar comando. O servidor retornou: " + resposta.status, true);
+                }
+            } catch (erro) {
+                console.error("Erro ao desativar:", erro);
+                mostrarNotificacao("Erro de conexão ao tentar desativar o alarme.", true);
+            } finally {
+                botao.disabled = false;
+                botao.textContent = 'Desativar Alarme';
+            }
+        }
+
+        // Carrega os logs assim que a página abre
+        carregarLogs();
+
+        // Atualiza a tabela automaticamente a cada 5 segundos
+        setInterval(carregarLogs, 5000);
+    </script>
+</body>
+</html>
