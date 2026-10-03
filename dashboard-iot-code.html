@@ -154,6 +154,28 @@
 
         .table-wrap { overflow-x: auto; }
         table { width: 100%; border-collapse: collapse; text-align: left; }
+        .pagination {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 12px;
+            padding: 12px 18px;
+            border-top: 1px solid var(--line);
+        }
+        .pagination[hidden] { display: none; }
+        .pagination button {
+            min-width: 82px;
+            min-height: 36px;
+            padding: 0 12px;
+            border: 1px solid var(--line);
+            border-radius: 6px;
+            background: var(--surface-raised);
+            color: var(--text);
+            cursor: pointer;
+        }
+        .pagination button:disabled { cursor: not-allowed; opacity: 0.5; }
+        .pagination button:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+        .pagination-info { min-width: 112px; color: var(--muted); font-size: 12px; text-align: center; }
         th, td { padding: 15px 22px; border-bottom: 1px solid #202f34; }
         th {
             background: var(--surface-raised);
@@ -286,6 +308,9 @@
             th { font-size: 9px; }
             td { font-size: 12px; }
             .refresh-note { white-space: normal; }
+            .pagination { gap: 6px; padding: 10px 8px; }
+            .pagination button { min-width: 72px; padding: 0 8px; }
+            .pagination-info { min-width: 96px; font-size: 11px; }
             .alarm-modal { padding: 16px; }
         }
 
@@ -343,6 +368,11 @@
                         </tbody>
                     </table>
                 </div>
+                <nav class="pagination" id="paginacao-registros" aria-label="Paginação dos registros" hidden>
+                    <button type="button" id="pagina-anterior" onclick="mudarPagina(-1)">Anterior</button>
+                    <span class="pagination-info" id="informacao-paginacao" aria-live="polite"></span>
+                    <button type="button" id="pagina-proxima" onclick="mudarPagina(1)">Próxima</button>
+                </nav>
             </section>
         </main>
     </div>
@@ -360,6 +390,9 @@
     <script>
         // A URL da API
         const apiUrl = "https://app.phrsystem.com/api/teste/iot";
+        const registrosPorPagina = 10;
+        let paginaAtual = 1;
+        let registrosAtuais = [];
 
         function atualizarStatusConexao(online) {
             const indicador = document.getElementById('status-conexao');
@@ -378,6 +411,63 @@
             temporizadorNotificacao = setTimeout(() => notificacao.classList.remove('is-visible'), 3500);
         }
 
+        function renderizarLogs() {
+            const corpoTabela = document.getElementById('tabela-logs');
+            const paginacao = document.getElementById('paginacao-registros');
+            const totalPaginas = Math.ceil(registrosAtuais.length / registrosPorPagina);
+
+            if (registrosAtuais.length === 0) {
+                corpoTabela.innerHTML = '<tr><td colspan="3">Nenhum registro encontrado.</td></tr>';
+                paginacao.hidden = true;
+                return;
+            }
+
+            paginaAtual = Math.min(paginaAtual, totalPaginas);
+            const inicio = (paginaAtual - 1) * registrosPorPagina;
+            const registrosDaPagina = registrosAtuais.slice(inicio, inicio + registrosPorPagina);
+            corpoTabela.innerHTML = '';
+
+            registrosDaPagina.forEach(registro => {
+                const linha = document.createElement('tr');
+
+                let statusMovimento;
+                if (registro.device_id === 'dashboard-web') {
+                    if (registro.button == 1) {
+                        statusMovimento = '🔴 Desativado (Web)';
+                    } else if (registro.button == 0) {
+                        statusMovimento = '🟢 Ativado (Web)';
+                    } else {
+                        statusMovimento = 'Evento Web';
+                    }
+                } else if (registro.movement == 1) {
+                    statusMovimento = '<span>🚨 Movimento Detectado</span>';
+                } else if (registro.movement == 0) {
+                    statusMovimento = '✅ Normal';
+                } else {
+                    statusMovimento = 'Status desconhecido';
+                }
+
+                const hora = new Date(registro.created_at).toLocaleString();
+                linha.innerHTML = `
+                    <td>${registro.device_id || 'ESP32'}</td>
+                    <td>${statusMovimento}</td>
+                    <td>${hora}</td>
+                `;
+                corpoTabela.appendChild(linha);
+            });
+
+            paginacao.hidden = totalPaginas <= 1;
+            document.getElementById('informacao-paginacao').textContent =
+                `Exibindo ${inicio + 1} a ${Math.min(inicio + registrosPorPagina, registrosAtuais.length)} de ${registrosAtuais.length}`;
+            document.getElementById('pagina-anterior').disabled = paginaAtual === 1;
+            document.getElementById('pagina-proxima').disabled = paginaAtual === totalPaginas;
+        }
+
+        function mudarPagina(direcao) {
+            paginaAtual += direcao;
+            renderizarLogs();
+        }
+
         // Função para buscar os logs do banco de dados (GET)
         async function carregarLogs() {
             try {
@@ -386,14 +476,10 @@
                 console.log("Resposta da API:", dados);
                 atualizarStatusConexao(resposta.ok);
                 
-                const corpoTabela = document.getElementById('tabela-logs');
-                corpoTabela.innerHTML = ''; // Limpa a tabela antes de preencher
-                
                 // Verifica se a API retornou um array de dados
                 if (dados && dados.data && Array.isArray(dados.data) && dados.data.length > 0) {
-                    // Ordena pelos mais recentes primeiro e exibe os últimos 10
-                    const registrosOrdenados = dados.data.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                    const ultimoEvento = registrosOrdenados[0];
+                    registrosAtuais = dados.data.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                    const ultimoEvento = registrosAtuais[0];
                     const modalAlarme = document.getElementById('modal-alarme');
 
                     if ((ultimoEvento.device_id === 'dashboard-web' && ultimoEvento.button == 0) ||
@@ -403,42 +489,17 @@
                         modalAlarme.style.display = 'none';
                     }
 
-                    registrosOrdenados.slice(0, 10).forEach(registro => {
-                        const linha = document.createElement('tr');
-                        
-                        let statusMovimento;
-                        if (registro.device_id === 'dashboard-web') {
-                            if (registro.button == 1) {
-                                statusMovimento = '🔴 Desativado (Web)';
-                            } else if (registro.button == 0) {
-                                statusMovimento = '🟢 Ativado (Web)';
-                            } else {
-                                statusMovimento = 'Evento Web';
-                            }
-                        } else if (registro.movement == 1) {
-                            statusMovimento = '<span>🚨 Movimento Detectado</span>';
-                        } else if (registro.movement == 0) {
-                            statusMovimento = '✅ Normal';
-                        } else {
-                            statusMovimento = 'Status desconhecido';
-                        }
-                        
-                        const hora = new Date(registro.created_at).toLocaleString();
-
-                        linha.innerHTML = `
-                            <td>${registro.device_id || 'ESP32'}</td>
-                            <td>${statusMovimento}</td>
-                            <td>${hora}</td>
-                        `;
-                        corpoTabela.appendChild(linha);
-                    });
+                    renderizarLogs();
                 } else {
-                    corpoTabela.innerHTML = '<tr><td colspan="3">Nenhum registro encontrado.</td></tr>';
+                    registrosAtuais = [];
+                    paginaAtual = 1;
+                    renderizarLogs();
                 }
             } catch (erro) {
                 console.error("Erro ao buscar logs:", erro);
                 atualizarStatusConexao(false);
                 document.getElementById('tabela-logs').innerHTML = '<tr><td colspan="3">Erro ao conectar com a API.</td></tr>';
+                document.getElementById('paginacao-registros').hidden = true;
             }
         }
 
