@@ -3,11 +3,90 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="0; url=dashboard-iot-code.html">
-    <title>Dashboard do Alarme IoT</title>
+    <title>Alarme ESP32</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚨</text></svg>">
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <p>Abrindo o <a href="dashboard-iot-code.html">Dashboard do Alarme IoT</a>...</p>
-    <script>window.location.replace('dashboard-iot-code.html');</script>
+
+    <div class="container">
+        <header class="topbar">
+            <div class="brand">
+                <div>
+                    <p class="eyebrow">Central de monitoramento</p>
+                    <p class="brand-name">Sistemas IoT</p>
+                </div>
+            </div>
+            <div class="connection" id="status-conexao" role="status" aria-live="polite">
+                <span class="led" aria-hidden="true"></span>
+                <span id="texto-conexao">Verificando MQTT</span>
+            </div>
+        </header>
+
+        <main>
+            <section class="heading" aria-labelledby="titulo-painel">
+                <div>
+                    <h1 id="titulo-painel">Monitor do alarme</h1>
+                    <p class="subtitle">Acompanhe a atividade e o estado do dispositivo.</p>
+                </div>
+                <button type="button" class="btn-ativar" id="botao-ativar" aria-pressed="false">
+                    Ativar Alarme
+                </button>
+                <div class="desativacao-slider" id="deslizador-alarme" role="slider" tabindex="0"
+                    aria-label="Deslize para desativar o alarme" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+                    aria-valuetext="Pronto para deslizar" hidden>
+                    <span class="desativacao-slider-texto">Deslize para desativar</span>
+                    <span class="desativacao-slider-alca" aria-hidden="true">›</span>
+                </div>
+            </section>
+
+            <section class="panel" aria-labelledby="titulo-registros">
+                <div class="section-heading">
+                    <div>
+                        <h2 id="titulo-registros">Últimos registros</h2>
+                        <p class="section-label">Atividade do dispositivo</p>
+                    </div>
+                    <span class="refresh-note">Atualização em tempo real via MQTT</span>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th scope="col">Dispositivo</th>
+                                <th scope="col">Evento / Status</th>
+                                <th scope="col">DATA E HORA</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabela-logs">
+                            <tr><td class="empty-state" colspan="3">Carregando dados...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <nav class="pagination" id="paginacao-registros" aria-label="Paginação dos registros" hidden>
+                    <button type="button" id="pagina-anterior" onclick="mudarPagina(-1)">Anterior</button>
+                    <span class="pagination-info" id="informacao-paginacao" aria-live="polite"></span>
+                    <button type="button" id="pagina-proxima" onclick="mudarPagina(1)">Próxima</button>
+                </nav>
+            </section>
+        </main>
+    </div>
+    <div class="alarm-modal" id="modal-alarme" role="alertdialog" aria-modal="true" aria-labelledby="titulo-modal-alarme" aria-describedby="descricao-modal-alarme">
+        <section class="alarm-modal-card">
+            <p class="alarm-kicker">Alerta crítico · Segurança IoT</p>
+            <div class="alarm-icon" aria-hidden="true">🚨</div>
+            <h2 class="alarm-title" id="titulo-modal-alarme">ALARME ATIVO</h2>
+            <p class="alarm-description" id="descricao-modal-alarme">Verifique o ambiente e desative o alerta quando estiver seguro.</p>
+            <div class="desativacao-slider" id="deslizador-modal" role="slider" tabindex="0"
+                aria-label="Deslize para desativar o alarme" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"
+                aria-valuetext="Pronto para deslizar">
+                <span class="desativacao-slider-texto">Deslize para desativar</span>
+                <span class="desativacao-slider-alca" aria-hidden="true">›</span>
+            </div>
+        </section>
+    </div>
+    <div class="toast" id="notificacao" role="status" aria-live="polite"></div>
+
+    <script defer src="app.js"></script>
 </body>
 </html>
