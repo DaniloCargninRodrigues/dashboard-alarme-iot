@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard do Alarme IoT</title>
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         :root {
             color-scheme: dark;
@@ -331,7 +332,7 @@
             </div>
             <div class="connection" id="status-conexao" role="status" aria-live="polite">
                 <span class="led" aria-hidden="true"></span>
-                <span id="texto-conexao">Verificando API</span>
+                <span id="texto-conexao">Verificando MQTT</span>
             </div>
         </header>
 
@@ -352,7 +353,7 @@
                         <h2 id="titulo-registros">Últimos registros</h2>
                         <p class="section-label">Atividade do dispositivo</p>
                     </div>
-                    <span class="refresh-note">Atualização automática a cada 5 segundos</span>
+                    <span class="refresh-note">Atualização em tempo real via MQTT</span>
                 </div>
                 <div class="table-wrap">
                     <table>
@@ -388,17 +389,19 @@
     <div class="toast" id="notificacao" role="status" aria-live="polite"></div>
 
     <script>
-        // A URL da API
-        const apiUrl = "https://app.phrsystem.com/api/teste/iot";
+        const BROKER_WS_URL = 'ws://SEU_NGROK_HTTP_URL';
+        const TOPICO_INSCRICAO = 'phrsystem/teste/iot/dados';
+        const TOPICO_PUBLICACAO = 'phrsystem/teste/iot/comando';
         const registrosPorPagina = 10;
         let paginaAtual = 1;
         let registrosAtuais = [];
+        let clienteMqtt;
 
         function atualizarStatusConexao(online) {
             const indicador = document.getElementById('status-conexao');
             indicador.classList.toggle('is-online', online);
             indicador.classList.toggle('is-offline', !online);
-            document.getElementById('texto-conexao').textContent = online ? 'API online' : 'API offline';
+            document.getElementById('texto-conexao').textContent = online ? 'MQTT online' : 'MQTT offline';
         }
 
         let temporizadorNotificacao;
@@ -429,6 +432,9 @@
 
             registrosDaPagina.forEach(registro => {
                 const linha = document.createElement('tr');
+                const celulaDispositivo = document.createElement('td');
+                const celulaStatus = document.createElement('td');
+                const celulaHora = document.createElement('td');
 
                 let statusMovimento;
                 if (registro.device_id === 'dashboard-web') {
@@ -447,12 +453,10 @@
                     statusMovimento = 'Status desconhecido';
                 }
 
-                const hora = new Date(registro.created_at).toLocaleString();
-                linha.innerHTML = `
-                    <td>${registro.device_id || 'ESP32'}</td>
-                    <td>${statusMovimento}</td>
-                    <td>${hora}</td>
-                `;
+                celulaDispositivo.textContent = registro.device_id || 'ESP32';
+                celulaStatus.textContent = statusMovimento;
+                celulaHora.textContent = new Date(registro.created_at).toLocaleString();
+                linha.append(celulaDispositivo, celulaStatus, celulaHora);
                 corpoTabela.appendChild(linha);
             });
 
@@ -468,69 +472,100 @@
             renderizarLogs();
         }
 
-        // Função para buscar os logs do banco de dados (GET)
-        async function carregarLogs() {
+        function processarMensagemMqtt(topico, payload) {
+            if (topico !== TOPICO_INSCRICAO) {
+                return;
+            }
+
+            let registro;
             try {
-                const resposta = await fetch(apiUrl);
-                const dados = await resposta.json();
-                console.log("Resposta da API:", dados);
-                atualizarStatusConexao(resposta.ok);
-                
-                // Verifica se a API retornou um array de dados
-                if (dados && dados.data && Array.isArray(dados.data) && dados.data.length > 0) {
-                    registrosAtuais = dados.data.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-                    const ultimoEvento = registrosAtuais[0];
-                    const modalAlarme = document.getElementById('modal-alarme');
-
-                    if ((ultimoEvento.device_id === 'dashboard-web' && ultimoEvento.button == 0) ||
-                        (ultimoEvento.device_id !== 'dashboard-web' && ultimoEvento.movement == 1)) {
-                        modalAlarme.style.display = 'flex';
-                    } else if (ultimoEvento.device_id === 'dashboard-web' && ultimoEvento.button == 1) {
-                        modalAlarme.style.display = 'none';
-                    }
-
-                    renderizarLogs();
-                } else {
-                    registrosAtuais = [];
-                    paginaAtual = 1;
-                    renderizarLogs();
-                }
+                registro = JSON.parse(payload.toString());
             } catch (erro) {
-                console.error("Erro ao buscar logs:", erro);
-                atualizarStatusConexao(false);
-                document.getElementById('tabela-logs').innerHTML = '<tr><td colspan="3">Erro ao conectar com a API.</td></tr>';
-                document.getElementById('paginacao-registros').hidden = true;
+                console.error('Mensagem MQTT contém JSON inválido:', erro);
+                return;
+            }
+
+            if (
+                !registro ||
+                typeof registro !== 'object' ||
+                typeof registro.device_id !== 'string' ||
+                !('movement' in registro) ||
+                !('button' in registro)
+            ) {
+                console.error('Mensagem MQTT recebida com formato inesperado:', registro);
+                return;
+            }
+
+            const novoRegistro = {
+                ...registro,
+                created_at: new Date().toISOString()
+            };
+
+            registrosAtuais.unshift(novoRegistro);
+            paginaAtual = 1;
+            renderizarLogs();
+
+            const modalAlarme = document.getElementById('modal-alarme');
+            if (novoRegistro.movement == 1) {
+                modalAlarme.style.display = 'flex';
+            } else if (novoRegistro.button == 1) {
+                modalAlarme.style.display = 'none';
             }
         }
 
-        async function enviarComandoAlarme(button) {
-            return fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    device_id: 'dashboard-web',
-                    movement: 0,
-                    button
-                })
+        function conectarMqtt() {
+            clienteMqtt = mqtt.connect(BROKER_WS_URL, {
+                reconnectPeriod: 1000
             });
+
+            clienteMqtt.on('connect', () => {
+                atualizarStatusConexao(true);
+                clienteMqtt.subscribe(TOPICO_INSCRICAO, erro => {
+                    if (erro) {
+                        console.error('Erro ao se inscrever no tópico MQTT:', erro);
+                        atualizarStatusConexao(false);
+                    }
+                });
+            });
+
+            clienteMqtt.on('reconnect', () => atualizarStatusConexao(false));
+            clienteMqtt.on('offline', () => atualizarStatusConexao(false));
+            clienteMqtt.on('error', erro => {
+                console.error('Erro na conexão MQTT:', erro);
+                atualizarStatusConexao(false);
+            });
+            clienteMqtt.on('message', processarMensagemMqtt);
         }
 
         async function ativarAlarme() {
             const botao = document.getElementById('botao-ativar');
+            if (!clienteMqtt || !clienteMqtt.connected) {
+                mostrarNotificacao('Sem conexão MQTT para enviar o comando.', true);
+                return;
+            }
+
             botao.disabled = true;
             botao.textContent = 'Ativando...';
             try {
-                const resposta = await enviarComandoAlarme(0);
-                if (resposta.ok) {
-                    mostrarNotificacao('Comando para ativar o alarme enviado.');
-                } else {
-                    mostrarNotificacao("Erro ao enviar comando. O servidor retornou: " + resposta.status, true);
-                }
+                const comando = JSON.stringify({
+                    device_id: 'dashboard-web',
+                    movement: 0,
+                    button: 0
+                });
+
+                await new Promise((resolve, reject) => {
+                    clienteMqtt.publish(TOPICO_PUBLICACAO, comando, { qos: 1 }, erro => {
+                        if (erro) {
+                            reject(erro);
+                        } else {
+                            resolve();
+                        }
+                    });
+                });
+                mostrarNotificacao('Comando para ativar o alarme enviado.');
             } catch (erro) {
-                console.error("Erro ao ativar:", erro);
-                mostrarNotificacao("Erro de conexão ao tentar ativar o alarme.", true);
+                console.error('Erro ao ativar o alarme via MQTT:', erro);
+                mostrarNotificacao('Erro ao enviar comando MQTT para ativar o alarme.', true);
             } finally {
                 botao.disabled = false;
                 botao.textContent = 'Ativar Alarme';
@@ -540,30 +575,41 @@
         async function desativarAlarme() {
             const modalAlarme = document.getElementById('modal-alarme');
             const botao = document.getElementById('botao-desativar');
-            modalAlarme.style.display = 'none';
+            if (!clienteMqtt || !clienteMqtt.connected) {
+                mostrarNotificacao('Sem conexão MQTT para enviar o comando.', true);
+                return;
+            }
+
             botao.disabled = true;
             botao.textContent = 'Enviando...';
             try {
-                const resposta = await enviarComandoAlarme(1);
-                if (resposta.ok) {
-                    mostrarNotificacao('Alarme desativado com sucesso.');
-                } else {
-                    mostrarNotificacao("Erro ao enviar comando. O servidor retornou: " + resposta.status, true);
-                }
+                const comando = JSON.stringify({
+                    device_id: 'dashboard-web',
+                    movement: 0,
+                    button: 1
+                });
+
+                await new Promise((resolve, reject) => {
+                    clienteMqtt.publish(TOPICO_PUBLICACAO, comando, { qos: 1 }, erro => {
+                        if (erro) {
+                            reject(erro);
+                        } else {
+                            resolve();
+                        }
+                    });
+                });
+                modalAlarme.style.display = 'none';
+                mostrarNotificacao('Comando para desativar o alarme enviado.');
             } catch (erro) {
-                console.error("Erro ao desativar:", erro);
-                mostrarNotificacao("Erro de conexão ao tentar desativar o alarme.", true);
+                console.error('Erro ao desativar o alarme via MQTT:', erro);
+                mostrarNotificacao('Erro ao enviar comando MQTT para desativar o alarme.', true);
             } finally {
                 botao.disabled = false;
                 botao.textContent = 'Desativar Alarme';
             }
         }
 
-        // Carrega os logs assim que a página abre
-        carregarLogs();
-
-        // Atualiza a tabela automaticamente a cada 5 segundos
-        setInterval(carregarLogs, 5000);
+        conectarMqtt();
     </script>
 </body>
 </html>
