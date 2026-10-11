@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf
+
+  node-red:
+    image: nodered/node-red:latest
+    container_name: nodered
+    restart: unless-stopped
+    environment:
+      - TZ=America/Sao_Paulo
+    ports:
+      - "1880:1880"
+    volumes:
+      - node-red-data:/data
+
+  influxdb:
+    image: influxdb:2
+    container_name: influxdb
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=danilo
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_INIT_PASSWORD:?Defina INFLUXDB_INIT_PASSWORD no ambiente}
+      - DOCKER_INFLUXDB_INIT_ORG=PHRSystem
+      - DOCKER_INFLUXDB_INIT_BUCKET=sensor_alarme
+    volumes:
+      - influxdb-data:/var/lib/influxdb2
+      - influxdb-config:/etc/influxdb2
+
+volumes:
+  node-red-data:
+  influxdb-data:
+  influxdb-config:
