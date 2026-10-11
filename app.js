@@ -1,10 +1,13 @@
 const BROKER_WS_URL = 'ws://192.168.9.130:9001/mqtt';
 const TOPICO_INSCRICAO = 'phrsystem/teste/iot/dados';
 const TOPICO_PUBLICACAO = 'phrsystem/teste/iot/comando';
+const TOPICO_HISTORICO_RESPOSTA = 'phrsystem/teste/iot/historico/resposta';
+const TOPICO_HISTORICO_PEDIDO = 'phrsystem/teste/iot/historico/pedido';
 const registrosPorPagina = 10;
 let paginaAtual = 1;
 let registrosAtuais = [];
 let clienteMqtt;
+let temporizadorAguardandoAtividade;
 let alarmeAtivo = false;
 let deslizadorEmUso;
 let tipoEntradaDeslizador;
@@ -201,6 +204,30 @@ function mostrarNotificacao(mensagem, erro = false) {
     temporizadorNotificacao = setTimeout(() => notificacao.classList.remove('is-visible'), 3500);
 }
 
+function adicionarLinhaTabela(registro, dataHora = registro.created_at) {
+    const linha = document.createElement('tr');
+    const celulaDispositivo = document.createElement('td');
+    const celulaStatus = document.createElement('td');
+    const celulaHora = document.createElement('td');
+
+    let statusMovimento;
+    if (registro.movement == 1) {
+        statusMovimento = '🚨 Movimento Detectado';
+    } else if (registro.button == 1) {
+        statusMovimento = '🔇 Alarme Desativado';
+    } else if (registro.button == 0 && registro.movement == 0) {
+        statusMovimento = '🟢 Alarme Ativado';
+    } else {
+        statusMovimento = 'Status desconhecido';
+    }
+
+    celulaDispositivo.textContent = registro.device_id || 'ESP32';
+    celulaStatus.innerHTML = statusMovimento;
+    celulaHora.textContent = new Date(dataHora).toLocaleString();
+    linha.append(celulaDispositivo, celulaStatus, celulaHora);
+    document.getElementById('tabela-logs').appendChild(linha);
+}
+
 function renderizarLogs() {
     const corpoTabela = document.getElementById('tabela-logs');
     const paginacao = document.getElementById('paginacao-registros');
@@ -218,35 +245,7 @@ function renderizarLogs() {
     corpoTabela.innerHTML = '';
 
     registrosDaPagina.forEach(registro => {
-        const linha = document.createElement('tr');
-        const celulaDispositivo = document.createElement('td');
-        const celulaStatus = document.createElement('td');
-        const celulaHora = document.createElement('td');
-
-        let statusMovimento;
-        if (registro.eventoDashboard === 'alarme-desativado') {
-            statusMovimento = '🔇 Alarme Desativado';
-        } else if (registro.device_id === 'dashboard-web') {
-            if (registro.button == 1) {
-                statusMovimento = '🔴 Desativado (Web)';
-            } else if (registro.button == 0) {
-                statusMovimento = '🟢 Ativado (Web)';
-            } else {
-                statusMovimento = 'Evento Web';
-            }
-        } else if (registro.movement == 1) {
-            statusMovimento = '<span>🚨 Movimento Detectado</span>';
-        } else if (registro.movement == 0) {
-            statusMovimento = '✅ Normal';
-        } else {
-            statusMovimento = 'Status desconhecido';
-        }
-
-        celulaDispositivo.textContent = registro.device_id || 'ESP32';
-        celulaStatus.innerHTML = statusMovimento;
-        celulaHora.textContent = new Date(registro.created_at).toLocaleString();
-        linha.append(celulaDispositivo, celulaStatus, celulaHora);
-        corpoTabela.appendChild(linha);
+        adicionarLinhaTabela(registro);
     });
 
     paginacao.hidden = totalPaginas <= 1;
@@ -310,6 +309,35 @@ function processarMensagemMqtt(topico, payload) {
     }
 }
 
+function processarHistoricoMqtt(payload) {
+    let historico;
+    try {
+        historico = JSON.parse(payload.toString());
+    } catch (erro) {
+        console.error('Histórico MQTT contém JSON inválido:', erro);
+        return;
+    }
+
+    if (!Array.isArray(historico)) {
+        console.error('Histórico MQTT recebido em formato inesperado:', historico);
+        return;
+    }
+
+    const corpoTabela = document.getElementById('tabela-logs');
+    corpoTabela.innerHTML = '';
+    historico.forEach(item => {
+        const registro = {
+            device_id: item.device_id || 'esp32-alarm',
+            movement: item.movement || 0,
+            button: item.button || 0,
+            created_at: item._time
+        };
+        registrosAtuais.push(registro);
+    });
+    paginaAtual = 1;
+    renderizarLogs();
+}
+
 function conectarMqtt() {
     clienteMqtt = mqtt.connect(BROKER_WS_URL, {
         reconnectPeriod: 1000
@@ -317,6 +345,25 @@ function conectarMqtt() {
 
     clienteMqtt.on('connect', () => {
         atualizarStatusConexao(true);
+        clearTimeout(temporizadorAguardandoAtividade);
+        temporizadorAguardandoAtividade = setTimeout(() => {
+            const estadoVazio = document.querySelector('#tabela-logs .empty-state');
+            if (estadoVazio && estadoVazio.textContent === 'Carregando dados...') {
+                estadoVazio.textContent = 'Aguardando nova atividade do dispositivo...';
+            }
+        }, 5000);
+        clienteMqtt.subscribe(TOPICO_HISTORICO_RESPOSTA, erro => {
+            if (erro) {
+                console.error('Erro ao se inscrever no tópico de histórico MQTT:', erro);
+                return;
+            }
+
+            clienteMqtt.publish(TOPICO_HISTORICO_PEDIDO, 'ping', erroPublicacao => {
+                if (erroPublicacao) {
+                    console.error('Erro ao solicitar histórico MQTT:', erroPublicacao);
+                }
+            });
+        });
         clienteMqtt.subscribe(TOPICO_INSCRICAO, erro => {
             if (erro) {
                 console.error('Erro ao se inscrever no tópico MQTT:', erro);
@@ -331,7 +378,15 @@ function conectarMqtt() {
         console.error('Erro na conexão MQTT:', erro);
         atualizarStatusConexao(false);
     });
-    clienteMqtt.on('message', processarMensagemMqtt);
+    clienteMqtt.on('message', (topico, payload) => {
+        clearTimeout(temporizadorAguardandoAtividade);
+        temporizadorAguardandoAtividade = undefined;
+        if (topico === TOPICO_HISTORICO_RESPOSTA) {
+            processarHistoricoMqtt(payload);
+        } else {
+            processarMensagemMqtt(topico, payload);
+        }
+    });
 }
 
 async function ativarAlarme() {
