@@ -30,10 +30,11 @@ services:
       - "8086:8086"
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=danilo
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
       - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_INIT_PASSWORD:?Defina INFLUXDB_INIT_PASSWORD no ambiente}
       - DOCKER_INFLUXDB_INIT_ORG=PHRSystem
       - DOCKER_INFLUXDB_INIT_BUCKET=sensor_alarme
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_INIT_ADMIN_TOKEN:?Defina INFLUXDB_INIT_ADMIN_TOKEN no ambiente}
     volumes:
       - influxdb-data:/var/lib/influxdb2
       - influxdb-config:/etc/influxdb2

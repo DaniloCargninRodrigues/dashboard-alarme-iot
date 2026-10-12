@@ -1,0 +1,615 @@
+[
+    {
+        "id": "f6f2187d.f17ca8",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "3cc11d24.ff01a2",
+        "type": "comment",
+        "z": "f6f2187d.f17ca8",
+        "name": "WARNING: please check you have started this container with a volume that is mounted to /data\\n otherwise any flow changes are lost when you redeploy or upgrade the container\\n (e.g. upgrade to a more recent node-red docker image).\\n  If you are using named volumes you can ignore this warning.\\n Double click or see info side panel to learn how to start Node-RED in Docker to save your work",
+        "info": "\nTo start docker with a bind mount volume (-v option), for example:\n\n```\ndocker run -it -p 1880:1880 -v /home/user/node_red_data:/data --name mynodered nodered/node-red\n```\n\nwhere `/home/user/node_red_data` is a directory on your host machine where you want to store your flows.\n\nIf you do not do this then you can experiment and redploy flows, but if you restart or upgrade the container the flows will be disconnected and lost. \n\nThey will still exist in a hidden data volume, which can be recovered using standard docker techniques, but that is much more complex than just starting with a named volume as described above.",
+        "x": 350,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "184a9a35a7cff2c9",
+        "type": "mqtt in",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "topic": "phrsystem/teste/iot/dados",
+        "qos": "2",
+        "datatype": "json",
+        "broker": "e941328b0770aa16",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 480,
+        "wires": [
+            [
+                "233643ddaeb7162a",
+                "5334a2d0cce0e7a0",
+                "5956fe352cdd72f5",
+                "c73d9eb8ddf91795"
+            ]
+        ]
+    },
+    {
+        "id": "233643ddaeb7162a",
+        "type": "debug",
+        "z": "f6f2187d.f17ca8",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 440,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "5334a2d0cce0e7a0",
+        "type": "influxdb out",
+        "z": "f6f2187d.f17ca8",
+        "influxdb": "72c92f7150c21bea",
+        "name": "",
+        "measurement": "sensores",
+        "precision": "",
+        "retentionPolicy": "",
+        "database": "database",
+        "precisionV18FluxV20": "ms",
+        "retentionPolicyV18Flux": "",
+        "org": "PHRSystem",
+        "bucket": "sensor_alarme",
+        "x": 520,
+        "y": 580,
+        "wires": []
+    },
+    {
+        "id": "cc9826228bf6d168",
+        "type": "ui-button",
+        "z": "f6f2187d.f17ca8",
+        "group": "f9e8e792690ec6fa",
+        "name": "Desativar Alarme",
+        "label": "Desativar Alarme",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "iconPosition": "left",
+        "payload": "{\"button\": 1}",
+        "payloadType": "json",
+        "topic": "topic",
+        "topicType": "msg",
+        "buttonColor": "red",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 850,
+        "y": 380,
+        "wires": [
+            [
+                "554d1a9663e705d5"
+            ]
+        ]
+    },
+    {
+        "id": "554d1a9663e705d5",
+        "type": "mqtt out",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "topic": "phrsystem/teste/iot/comando",
+        "qos": "",
+        "retain": "",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "e941328b0770aa16",
+        "x": 1120,
+        "y": 340,
+        "wires": []
+    },
+    {
+        "id": "e403b7202937b282",
+        "type": "ui-button",
+        "z": "f6f2187d.f17ca8",
+        "group": "f9e8e792690ec6fa",
+        "name": "Ativar Alarme",
+        "label": "Ativar Alarme",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "emulateClick": false,
+        "tooltip": "",
+        "color": "",
+        "bgcolor": "",
+        "className": "",
+        "icon": "",
+        "iconPosition": "left",
+        "payload": "{\"button\": 0}",
+        "payloadType": "json",
+        "topic": "topic",
+        "topicType": "msg",
+        "buttonColor": "green",
+        "textColor": "",
+        "iconColor": "",
+        "enableClick": true,
+        "enablePointerdown": false,
+        "pointerdownPayload": "",
+        "pointerdownPayloadType": "str",
+        "enablePointerup": false,
+        "pointerupPayload": "",
+        "pointerupPayloadType": "str",
+        "x": 830,
+        "y": 320,
+        "wires": [
+            [
+                "554d1a9663e705d5"
+            ]
+        ]
+    },
+    {
+        "id": "ca7ee6729810ee83",
+        "type": "ui-table",
+        "z": "f6f2187d.f17ca8",
+        "group": "f9e8e792690ec6fa",
+        "name": "",
+        "label": "",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "maxrows": 0,
+        "passthru": false,
+        "autocols": true,
+        "showSearch": true,
+        "deselect": true,
+        "selectionType": "none",
+        "columns": [
+            {
+                "title": "",
+                "key": "",
+                "keyType": "key",
+                "type": "text",
+                "width": "",
+                "align": "start"
+            }
+        ],
+        "mobileBreakpoint": "sm",
+        "mobileBreakpointType": "defaults",
+        "action": "append",
+        "className": "",
+        "x": 590,
+        "y": 380,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "5956fe352cdd72f5",
+        "type": "function",
+        "z": "f6f2187d.f17ca8",
+        "name": "function 1",
+        "func": "// Converte os dados do Wokwi (JSON)\nvar dados = typeof msg.payload === \"string\" ? JSON.parse(msg.payload) : msg.payload;\n\n// Puxa o histórico ou cria lista vazia\nvar historico = flow.get(\"historico_sensores\") || [];\n\n// Cria a nova linha\nvar novaLinha = {\n    hora: new Date().toLocaleTimeString('pt-BR'),\n    movimento: dados.movement == 1 ? \"🚨 Detectado\" : \"Manual\",\n    botao: dados.button == 1 ? \"🔴 Alarme Desativado\" : \"🟢 Ativo\"\n};\n\n// Adiciona no topo da lista\nhistorico.unshift(novaLinha);\n\n// Limita a 10 registos\nif (historico.length > 10) {\n    historico.pop();\n}\n\n// Guarda na memória do Node-RED\nflow.set(\"historico_sensores\", historico);\n\n// 1º Passo: Dispara uma lista vazia para forçar a limpeza da tabela no ecrã\nnode.send({ payload: [] });\n\n// 2º Passo: Dispara a lista ordenada atualizada\nnode.send({ payload: historico });\n\n// Encerra a função\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 380,
+        "wires": [
+            [
+                "ca7ee6729810ee83"
+            ]
+        ]
+    },
+    {
+        "id": "5d9c6cda0eb8e8f9",
+        "type": "inject",
+        "z": "f6f2187d.f17ca8",
+        "name": "Limpar banco",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 110,
+        "y": 320,
+        "wires": [
+            [
+                "2685072936e7575c"
+            ]
+        ]
+    },
+    {
+        "id": "2685072936e7575c",
+        "type": "function",
+        "z": "f6f2187d.f17ca8",
+        "name": "function 2",
+        "func": "// Zera a memória do fluxo no Node-RED\nflow.set(\"historico_sensores\", []);\n\n// Zera a tabela visual no Dashboard enviando uma lista vazia\nmsg.payload = [];\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 320,
+        "wires": [
+            [
+                "ca7ee6729810ee83"
+            ]
+        ]
+    },
+    {
+        "id": "c4c57a4130b18279",
+        "type": "ui-notification",
+        "z": "f6f2187d.f17ca8",
+        "ui": "d1ebd7a30cc07684",
+        "position": "top right",
+        "colorDefault": true,
+        "color": "#000000",
+        "displayTime": "5",
+        "showCountdown": true,
+        "outputs": 1,
+        "allowDismiss": true,
+        "dismissText": "Close",
+        "allowConfirm": false,
+        "confirmText": "Confirm",
+        "raw": true,
+        "className": "",
+        "name": "ALERTA DE INVASÃO!",
+        "x": 870,
+        "y": 260,
+        "wires": [
+            []
+        ],
+        "inputLabels": [
+            "ALERTA: Movimento detetado pelo sensor PIR!"
+        ],
+        "outputLabels": [
+            "ALERTA: Movimento detetado pelo sensor PIR!"
+        ]
+    },
+    {
+        "id": "c2b8501262d7bed5",
+        "type": "change",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "rules": [
+            {
+                "t": "set",
+                "p": "payload",
+                "pt": "msg",
+                "to": "🚨 ALERTA: Movimento detetado pelo sensor PIR!",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 630,
+        "y": 260,
+        "wires": [
+            [
+                "c4c57a4130b18279"
+            ]
+        ]
+    },
+    {
+        "id": "c73d9eb8ddf91795",
+        "type": "function",
+        "z": "f6f2187d.f17ca8",
+        "name": "function 3",
+        "func": "// Garante que o payload do MQTT é convertido de string para objeto JSON\nvar dados = typeof msg.payload === \"string\" ? JSON.parse(msg.payload) : msg.payload;\n\n// Verifica se o movimento é exatamente 1 (invasão)\nif (dados.movement === 1) {\n    // Deixa a mensagem seguir para o próximo nó\n    return msg;\n}\n\n// Se for 0 ou qualquer outra coisa, bloqueia a mensagem\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 440,
+        "y": 260,
+        "wires": [
+            [
+                "c2b8501262d7bed5"
+            ]
+        ]
+    },
+    {
+        "id": "c4ca0e6f18f69299",
+        "type": "mqtt in",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "topic": "phrsystem/teste/iot/historico/pedido",
+        "qos": "0",
+        "datatype": "auto-detect",
+        "broker": "e941328b0770aa16",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 160,
+        "y": 660,
+        "wires": [
+            [
+                "d12eea33caecf946",
+                "f021d527951986fb"
+            ]
+        ]
+    },
+    {
+        "id": "d12eea33caecf946",
+        "type": "influxdb in",
+        "z": "f6f2187d.f17ca8",
+        "influxdb": "72c92f7150c21bea",
+        "name": "",
+        "query": "from(bucket: \"sensor_alarme\")\n  |> range(start: -7d)\n  |> filter(fn: (r) => r._measurement == \"sensores\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n  |> sort(columns: [\"_time\"], desc: true)",
+        "rawOutput": false,
+        "precision": "",
+        "retentionPolicy": "",
+        "org": "PHRSystem",
+        "x": 490,
+        "y": 660,
+        "wires": [
+            [
+                "a26128c0f14872d8",
+                "29c1eecc5b0e7322"
+            ]
+        ]
+    },
+    {
+        "id": "a26128c0f14872d8",
+        "type": "mqtt out",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "topic": "phrsystem/teste/iot/historico/resposta",
+        "qos": "1",
+        "retain": "false",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "e941328b0770aa16",
+        "x": 810,
+        "y": 660,
+        "wires": []
+    },
+    {
+        "id": "29c1eecc5b0e7322",
+        "type": "debug",
+        "z": "f6f2187d.f17ca8",
+        "name": "debug 2",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 720,
+        "y": 740,
+        "wires": []
+    },
+    {
+        "id": "f021d527951986fb",
+        "type": "debug",
+        "z": "f6f2187d.f17ca8",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 440,
+        "y": 620,
+        "wires": []
+    },
+    {
+        "id": "b40dced56345efc1",
+        "type": "mqtt in",
+        "z": "f6f2187d.f17ca8",
+        "name": "",
+        "topic": "phrsystem/teste/iot/comando",
+        "qos": "2",
+        "datatype": "auto-detect",
+        "broker": "e941328b0770aa16",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 140,
+        "y": 580,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "e941328b0770aa16",
+        "type": "mqtt-broker",
+        "name": "Mosquitto DietPi",
+        "broker": "192.168.9.130",
+        "port": 1883,
+        "clientid": "",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": 4,
+        "keepalive": 60,
+        "cleansession": true,
+        "autoUnsubscribe": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthRetain": "false",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closeRetain": "false",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willRetain": "false",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "72c92f7150c21bea",
+        "type": "influxdb",
+        "hostname": "127.0.0.1",
+        "port": 8086,
+        "protocol": "http",
+        "database": "database",
+        "name": "",
+        "usetls": false,
+        "tls": "",
+        "influxdbVersion": "2.0",
+        "url": "http://influxdb:8086",
+        "timeout": 10,
+        "rejectUnauthorized": true
+    },
+    {
+        "id": "f9e8e792690ec6fa",
+        "type": "ui-group",
+        "name": "Porta da Frente",
+        "page": "bb6db6901ae0c3b8",
+        "width": 6,
+        "height": 1,
+        "order": 1,
+        "showTitle": true,
+        "className": "",
+        "visible": "true",
+        "disabled": "false",
+        "groupType": "default",
+        "tab": ""
+    },
+    {
+        "id": "d1ebd7a30cc07684",
+        "type": "ui-base",
+        "name": "My Dashboard",
+        "path": "/dashboard",
+        "appIcon": "",
+        "includeClientData": true,
+        "acceptsClientConfig": [
+            "ui-notification",
+            "ui-control"
+        ],
+        "showPathInSidebar": false,
+        "headerContent": "page",
+        "navigationStyle": "default",
+        "titleBarStyle": "default",
+        "showReconnectNotification": true,
+        "notificationDisplayTime": 1,
+        "showDisconnectNotification": true,
+        "allowInstall": false
+    },
+    {
+        "id": "bb6db6901ae0c3b8",
+        "type": "ui-page",
+        "name": "Alarmes",
+        "ui": "d1ebd7a30cc07684",
+        "path": "/page1",
+        "icon": "home",
+        "layout": "grid",
+        "theme": "81a6bf1dfee74a77",
+        "breakpoints": [
+            {
+                "name": "Default",
+                "px": "0",
+                "cols": "3"
+            },
+            {
+                "name": "Tablet",
+                "px": "576",
+                "cols": "6"
+            },
+            {
+                "name": "Small Desktop",
+                "px": "768",
+                "cols": "9"
+            },
+            {
+                "name": "Desktop",
+                "px": "1024",
+                "cols": "12"
+            }
+        ],
+        "tabs": [],
+        "order": 1,
+        "className": "",
+        "visible": "true",
+        "disabled": "false"
+    },
+    {
+        "id": "81a6bf1dfee74a77",
+        "type": "ui-theme",
+        "name": "Default Theme",
+        "colors": {
+            "surface": "#fcfcfd",
+            "primary": "#0d74ce",
+            "bgPage": "#f9f9fb",
+            "groupBg": "#ffffff",
+            "groupOutline": "#d9d9e0"
+        },
+        "sizes": {
+            "density": "default",
+            "pagePadding": "12px",
+            "groupGap": "12px",
+            "groupBorderRadius": "4px",
+            "widgetGap": "12px"
+        }
+    },
+    {
+        "id": "29c9a8c7b881994c",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-influxdb": "0.7.0",
+            "@flowfuse/node-red-dashboard": "1.33.0"
+        }
+    }
+]
